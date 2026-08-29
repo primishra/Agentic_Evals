@@ -44,11 +44,16 @@ def run(store: RetailStore, prompt: str) -> Dict[str, Any]:
     messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=prompt)]
     steps = []
     raw_log = []
+    token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     for _ in range(MAX_STEPS):
         t0 = time.time()
         ai_msg: AIMessage = llm_with_tools.invoke(messages)
         latency_ms = (time.time() - t0) * 1000
+        usage = ai_msg.response_metadata.get("token_usage", {})
+        token_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
+        token_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+        token_usage["total_tokens"] += usage.get("total_tokens", 0)
         messages.append(ai_msg)
         raw_log.append({"role": "assistant", "content": ai_msg.content, "tool_calls": ai_msg.tool_calls})
 
@@ -79,4 +84,4 @@ def run(store: RetailStore, prompt: str) -> Dict[str, Any]:
     else:
         steps.append({"step_index": len(steps), "type": "FINAL_ANSWER", "content": "(step limit reached without a final answer)"})
 
-    return {"steps": steps, "raw_agent_output": raw_log}
+    return {"steps": steps, "raw_agent_output": raw_log, "token_usage": token_usage}

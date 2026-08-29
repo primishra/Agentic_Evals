@@ -130,12 +130,17 @@ def run(store: RetailStore, prompt: str) -> Dict[str, Any]:
     ]
     steps = []
     raw_log = []
+    token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
     for _ in range(MAX_STEPS):
         t0 = time.time()
         completion = _create_with_retry(client, model=MODEL, temperature=0, messages=messages)
         latency_ms = (time.time() - t0) * 1000
         text = completion.choices[0].message.content or ""
+        if completion.usage:
+            token_usage["prompt_tokens"] += completion.usage.prompt_tokens
+            token_usage["completion_tokens"] += completion.usage.completion_tokens
+            token_usage["total_tokens"] += completion.usage.total_tokens
         raw_log.append({"role": "assistant", "content": text})
         messages.append({"role": "assistant", "content": text})
 
@@ -180,4 +185,4 @@ def run(store: RetailStore, prompt: str) -> Dict[str, Any]:
     else:
         steps.append({"step_index": len(steps), "type": "FINAL_ANSWER", "content": "(step limit reached without a final answer)"})
 
-    return {"steps": steps, "raw_agent_output": raw_log}
+    return {"steps": steps, "raw_agent_output": raw_log, "token_usage": token_usage}

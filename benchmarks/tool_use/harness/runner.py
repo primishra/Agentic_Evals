@@ -39,6 +39,7 @@ def run_agent_on_tasks(agent_module, tasks: List[Dict[str, Any]]) -> List[Dict[s
             "world_state_before": world_before,
             "world_state_after": store.snapshot(),
             "raw_agent_output": adapter_output.get("raw_agent_output"),
+            "token_usage": adapter_output.get("token_usage", {}),
         }
         traces.append(trace)
         print(f"  [{agent_module.AGENT_ID}] {task['task_id']}: {len(trace['steps'])} steps")

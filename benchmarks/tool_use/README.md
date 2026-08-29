@@ -6,13 +6,13 @@ whether they perform the right operation, with the right arguments, at the
 right time, with the right consequences. Full design rationale in
 [`Agentic_Evals_Tool_Use_Benchmark_Design.md`](../../Agentic_Evals_Tool_Use_Benchmark_Design.md).
 
-**Status: Phase 1 (Specification) + Phase 2 (10-task pilot) complete. Phase 3
-task set (40 additional tasks, T11–T50) merged into `tasks.json` — 50 tasks
-total — but not yet run against real agents. See "Phase 3 Tasks" below.**
-Phase 3 (25–50 tasks) and Phase 4 (100+ tasks) are tracked in
-[issue #1](https://github.com/abhineer/Agentic_Evals/issues/1) and scoped for
-subsequent weeks — see "What This Surfaced" below for why 10 tasks came
-first.
+**Status: Phase 1 (Specification) + Phase 2 (10-task pilot) + Phase 3 (40
+additional tasks) + Phase 4 (50 additional tasks, T51–T100) complete. 100
+tasks total in `tasks.json`, covering all 11 benchmark categories.** The
+original pilot results in `results/` are from the 10-task pilot run only;
+running `run_pilot.py` will execute and score all 100 tasks against both
+agents and write updated results (requires `GROQ_API_KEY`). Tracked in
+[issue #1](https://github.com/abhineer/Agentic_Evals/issues/1).
 
 In the meantime, [`notebooks/tools/tool_eval_v2.ipynb`](../../notebooks/tools/tool_eval_v2.ipynb)
 still covers tool selection precision/recall, success rate, and cost-per-task
@@ -29,12 +29,12 @@ set was built to cover.
 | [`SCHEMA.md`](SCHEMA.md) | The finalized tool/task/trace schema and tool-use failure taxonomy (Phase 1) |
 | `store.py` | In-memory retail backend (`RetailStore`) tools operate against |
 | `tools.py` | The 10 pilot tools — full schema representation + real implementation, enforcing preconditions against `RetailStore` |
-| `tasks.json` | 50 tasks total — the original 10 pilot tasks (T01–T10) plus 40 Phase 3 additions (T11–T50) — prompt, seed world state, expected trajectory, stress-test tag |
+| `tasks.json` | 100 tasks total — the original 10 pilot tasks (T01–T10), 40 Phase 3 additions (T11–T50), and 50 Phase 4 additions (T51–T100) — prompt, seed world state, expected trajectory, stress-test tag |
 | `harness/runner.py` | Executes an agent adapter against the task set, produces standard traces |
 | `harness/scorer.py` | Scores traces against the mechanically-checkable evaluation dimensions |
 | `harness/agents/langchain_groq_agent.py` | Agent A — LangChain `bind_tools` loop, `openai/gpt-oss-120b` |
 | `harness/agents/manual_react_agent.py` | Agent B — hand-rolled ReAct prompt loop, raw Groq client, `qwen/qwen3.6-27b` |
-| `run_pilot.py` | Runs both agents against every task in `tasks.json` (currently 50), writes `results/` — **existing `results/` files are from the original 10-task pilot run only; the 40 Phase 3 additions haven't been run against a real agent yet** |
+| `run_pilot.py` | Runs both agents against every task in `tasks.json` (currently 100), writes `results/` including traces, per-task scores, and aggregate metrics (precision, recall, success rate, tokens per task) |
 | `results/` | Traces, scores, and the by-hand spot-check (`results/spot_check.md`) |
 
 ## Running It
@@ -147,10 +147,35 @@ order-independent or partially-ordered calls — both resolved and validated
 simulation of all 40, and explicit reordering tests). Full detail in
 `SCHEMA.md` section 9.
 
-**Not yet run against a real agent.** `run_pilot.py` will now execute and
-score all 50 tasks, but the `results/` directory on disk still only reflects
+**Not yet run against a real agent.** `run_pilot.py` will execute and
+score all 100 tasks, but the `results/` directory on disk still only reflects
 the original 10-task pilot run — running it again requires `GROQ_API_KEY`
 and will overwrite/extend those results.
+
+## Phase 4 Tasks (T51–T100)
+
+50 additional tasks, bringing the benchmark to the 100-task target from
+[issue #1](https://github.com/abhineer/Agentic_Evals/issues/1). Extends
+every category the pilot and Phase 3 established, with emphasis on:
+
+- **Multi-item complexity**: tasks with 3+ tool calls (T52, T54, T64, T67,
+  T87, T96, T97, T100) exercise deeper trajectories than Phase 3's maximum
+- **Explicit recovery paths**: T86 gives the agent a concrete fallback
+  instruction (cancel → fail → refund) — the first task where correct
+  recovery is mechanically checkable without an LLM judge
+- **New failure modes**: ORDER_PAID (T80), CART_EXISTS (T81),
+  ALL_PRODUCTS_EXIST (T82) — precondition failures the pilot and Phase 3
+  never triggered
+- **Same-tool-different-args alignment**: T56, T58, T96, T98 call the same
+  tool twice with different arguments, stress-testing the scorer's ANY-block
+  argument-content matching
+- **Richer argument parsing**: "half a dozen" → 6 (T76), "7.5%" → 0.075
+  (T78), DUPLICATE_CHARGE enum (T77), partial refund amounts (T74)
+
+**Aggregate metrics** added to `run_pilot.py`: tool invocation precision
+(avg efficiency), tool invocation recall (avg tool selection), success rate,
+and per-task token usage. Written to `results/summary.json` alongside the
+existing per-task scores.
 
 **Category breakdown** (40 new + 10 reused/kept from the pilot = 50 total),
 weighted toward categories the pilot showed actually discriminate agent
@@ -158,20 +183,20 @@ quality (wrong-tool, argument errors, failure recovery) rather than pure
 production-frequency, plus three categories the pilot never touched at all
 (no-tool, ambiguous, parallel):
 
-| Category | Total | From pilot | Phase 3 additions |
-|---|---|---|---|
-| single-tool | 3 | 1 | 2 |
-| multi-tool | 5 | 1 | 4 |
-| dependency | 5 | 1 | 4 |
-| sequential | 5 | 1 | 4 |
-| wrong-tool | 6 | 3 | 3 |
-| argument errors | 5 | 1 | 4 |
-| tool failures | 4 | 1 | 3 |
-| failure recovery | 6 | 1 | 5 |
-| no-tool | 4 | 0 | 4 |
-| ambiguous | 4 | 0 | 4 |
-| parallel | 3 | 0 | 3 |
-| **Total** | **50** | **10** | **40** |
+| Category | Total | From pilot | Phase 3 | Phase 4 |
+|---|---|---|---|---|
+| single-tool | 6 | 1 | 2 | 3 |
+| multi-tool | 10 | 1 | 4 | 5 |
+| dependency | 10 | 1 | 4 | 5 |
+| sequential | 10 | 1 | 4 | 5 |
+| wrong-tool | 11 | 3 | 3 | 5 |
+| argument errors | 10 | 1 | 4 | 5 |
+| tool failures | 8 | 1 | 3 | 4 |
+| failure recovery | 11 | 1 | 5 | 5 |
+| no-tool | 8 | 0 | 4 | 4 |
+| ambiguous | 8 | 0 | 4 | 4 |
+| parallel | 8 | 0 | 3 | 5 |
+| **Total** | **100** | **10** | **40** | **50** |
 
 **The pilot's "unguarded risk" gap closed without a new tool.** The pilot
 flagged that all 10 tools self-protect via preconditions, so no task could
